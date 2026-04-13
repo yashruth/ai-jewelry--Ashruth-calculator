@@ -11,7 +11,6 @@ if st.button("Calculate Price"):
     making_charge = metal_value * making / 100
     wastage_charge = metal_value * wastage / 100
     subtotal = metal_value + making_charge + wastage_charge + stone_price
-    gst = subtotal * 0.03
+    gst = subtotal * 0.03   # 3% GST
     final_price = subtotal + gst
-    st.success(f"Final Jewelry Price: ₹{final_price:.2f}")
-  
+    st.success(f"Final Jewelry Price (including GST): ₹{final_price:.2f}")
