@@ -1,8 +1,8 @@
 import streamlit as st
 from fpdf import FPDF
-st.title("Jewelry Price Calculator")
+st.title("Gold & Silver Jewelry Price Calculator")
 customer = st.text_input("Customer Name")
-purity = st.number_input("Purity")
+purity = st.number_input("Purity (Example: 92.5 for silver, 22 for gold)")
 weight = st.number_input("Weight (grams)")
 rate = st.number_input("Metal Rate per gram")
 making = st.number_input("Making Charge %")
@@ -13,17 +13,23 @@ if st.button("Calculate Price"):
     making_charge = metal_value * making / 100
     wastage_charge = metal_value * wastage / 100
     subtotal = metal_value + making_charge + wastage_charge + stone_price
-    gst = subtotal * 0.03
+    gst = subtotal * 0.03   # 3% GST
     final_price = subtotal + gst
-    st.success(f"Final Price: ₹{final_price:.2f}")
+    st.success(f"Final Jewelry Price: Rs. {final_price:.2f}")
+    # Generate PDF Bill
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
     pdf.cell(200,10,"Jewelry Shop Bill",ln=True,align="C")
-    pdf.cell(200,10,f"Customer: {customer}",ln=True)
+    pdf.cell(200,10,f"Customer Name: {customer}",ln=True)
+    pdf.cell(200,10,f"Purity: {purity}",ln=True)
     pdf.cell(200,10,f"Weight: {weight} g",ln=True)
-    pdf.cell(200,10,f"Rate: ₹{rate}",ln=True)
-    pdf.cell(200,10,f"Final Price: ₹{final_price:.2f}",ln=True)
+    pdf.cell(200,10,f"Metal Rate: Rs. {rate}",ln=True)
+    pdf.cell(200,10,f"Making Charge: {making} %",ln=True)
+    pdf.cell(200,10,f"Wastage: {wastage} %",ln=True)
+    pdf.cell(200,10,f"Stone Price: Rs. {stone_price}",ln=True)
+    pdf.cell(200,10,f"GST (3%): Rs. {gst:.2f}",ln=True)
+    pdf.cell(200,10,f"Total Price: Rs. {final_price:.2f}",ln=True)
     pdf.output("bill.pdf")
     with open("bill.pdf","rb") as file:
         st.download_button("Download Bill",file,"bill.pdf")
