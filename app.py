@@ -14,63 +14,47 @@ import plotly.express as px
 st.title("AI Jewelry Billing & Market Analytics System")
 
 
-# ---------------- USD TO INR ---------------- #
+# ---------------- LIVE METAL RATES (SAFE) ---------------- #
 
-def get_usd_inr():
-
-    try:
-        url = "https://api.exchangerate-api.com/v4/latest/USD"
-        data = requests.get(url).json()
-        return data["rates"]["INR"]
-
-    except:
-        return 83
-
-
-# ---------------- GLOBAL METAL PRICE ---------------- #
-
-def get_global_metal_rates():
+def get_live_rates():
 
     try:
+
         url = "https://api.metals.live/v1/spot"
-        data = requests.get(url).json()
 
-        gold_usd = data[0]["gold"]
-        silver_usd = data[1]["silver"]
+        response = requests.get(url, timeout=10)
 
-        return gold_usd, silver_usd
+        data = response.json()
+
+        gold_oz = data[0]["gold"]
+        silver_oz = data[1]["silver"]
+
+        gold_price = gold_oz / 31.1035
+        silver_price = silver_oz / 31.1035
+
+        return round(gold_price,2), round(silver_price,2)
 
     except:
+
         return None, None
 
 
-usd_inr = get_usd_inr()
-gold_usd, silver_usd = get_global_metal_rates()
+gold_rate, silver_rate = get_live_rates()
 
-if gold_usd:
+st.subheader("Live Metal Market Rates")
 
-    gold_rate = round((gold_usd / 31.1035) * usd_inr,2)
-    silver_rate = round((silver_usd / 31.1035) * usd_inr,2)
+if gold_rate is None or silver_rate is None:
 
-else:
+    st.warning("Unable to fetch market rates. Using default values.")
 
-    gold_rate = None
-    silver_rate = None
+    gold_rate = 7200
+    silver_rate = 90
 
-
-st.subheader("Live Indian Market Rates")
-
-if gold_rate:
-
-    st.success(f"Gold (24K): ₹{gold_rate} / gram")
-    st.success(f"Silver: ₹{silver_rate} / gram")
-
-else:
-
-    st.warning("Unable to fetch market rates")
+st.success(f"Gold Price per gram: ₹{gold_rate}")
+st.success(f"Silver Price per gram: ₹{silver_rate}")
 
 
-# ---------------- STORE DAILY PRICE ---------------- #
+# ---------------- STORE DAILY METAL PRICE ---------------- #
 
 today = datetime.now().strftime("%Y-%m-%d")
 
@@ -98,6 +82,7 @@ else:
 # ---------------- SHOP DETAILS ---------------- #
 
 shop_name = st.text_input("Shop Name","Ashruth Jewelry Shop")
+
 customer = st.text_input("Customer Name")
 
 st.subheader("Jewelry Details")
@@ -106,14 +91,16 @@ item = st.selectbox("Item",["Gold","Silver"])
 
 weight = st.number_input("Weight (grams)",min_value=0.0)
 
-if item=="Gold":
+if item == "Gold":
     rate = st.number_input("Rate per gram",value=float(gold_rate))
 
 else:
     rate = st.number_input("Rate per gram",value=float(silver_rate))
 
 making = st.number_input("Making Charge %")
+
 wastage = st.number_input("Wastage %")
+
 stone_price = st.number_input("Stone Price")
 
 
@@ -122,17 +109,21 @@ stone_price = st.number_input("Stone Price")
 if st.button("Generate Bill"):
 
     metal_value = weight * rate
+
     making_charge = metal_value * making / 100
+
     wastage_charge = metal_value * wastage / 100
 
     subtotal = metal_value + making_charge + wastage_charge + stone_price
 
     gst = subtotal * 0.03
+
     final_price = subtotal + gst
 
     st.success(f"Total Amount: ₹{round(final_price,2)}")
 
     invoice = "INV"+str(random.randint(1000,9999))
+
     date = datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
@@ -159,12 +150,15 @@ if st.button("Generate Bill"):
     # PDF BILL
 
     pdf = FPDF()
+
     pdf.add_page()
 
     pdf.set_font("Arial","B",16)
+
     pdf.cell(190,10,shop_name,ln=True,align="C")
 
     pdf.set_font("Arial","",12)
+
     pdf.cell(95,8,"Invoice: "+invoice)
     pdf.cell(95,8,"Date: "+date,ln=True)
 
@@ -220,9 +214,11 @@ if os.path.exists("sales.csv"):
     sales = pd.read_csv("sales.csv")
 
     total_sales = sales["Total"].sum()
+
     total_orders = len(sales)
 
     st.metric("Total Orders",total_orders)
+
     st.metric("Total Revenue",round(total_sales,2))
 
     item_sales = sales.groupby("Item")["Total"].sum().reset_index()
@@ -245,21 +241,21 @@ if os.path.exists("metal_prices.csv"):
         X = np.arange(len(data)).reshape(-1,1)
 
         gold_model = LinearRegression()
+
         silver_model = LinearRegression()
 
         gold_model.fit(X,data["Gold"])
+
         silver_model.fit(X,data["Silver"])
 
         next_day = np.array([[len(data)]])
 
         pred_gold = gold_model.predict(next_day)[0]
+
         pred_silver = silver_model.predict(next_day)[0]
 
         st.write("Predicted Gold Tomorrow:",round(pred_gold,2))
         st.write("Predicted Silver Tomorrow:",round(pred_silver,2))
-
-
-        # AI MARKET DIRECTION
 
         today_gold = data.iloc[-1]["Gold"]
 
@@ -273,7 +269,7 @@ if os.path.exists("metal_prices.csv"):
 
     else:
 
-        st.write("Collecting price data for prediction...")
+        st.write("Collecting data for prediction...")
 
 
 # ---------------- 30 DAY TREND ---------------- #
@@ -288,11 +284,6 @@ if os.path.exists("metal_prices.csv"):
 
     last_30 = df.tail(30)
 
-    fig = px.line(
-        last_30,
-        x="Date",
-        y=["Gold","Silver"],
-        title="Gold & Silver Trend"
-    )
+    fig = px.line(last_30,x="Date",y=["Gold","Silver"])
 
     st.plotly_chart(fig)
