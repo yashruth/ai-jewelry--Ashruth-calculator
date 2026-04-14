@@ -8,27 +8,27 @@ import plotly.express as px
 
 st.title("Jewelry Billing System")
 
-# ---------- SESSION STATE FIX ---------- #
+# ---------- SESSION STATE ----------
 
 if "items" not in st.session_state:
     st.session_state["items"] = []
 
-# ---------- CUSTOMER DETAILS ---------- #
+# ---------- CUSTOMER DETAILS ----------
 
-shop_name = st.text_input("Shop Name","Ashruth Jewelry Shop")
+shop_name = st.text_input("Shop Name", "Ashruth Jewelry Shop")
 customer = st.text_input("Customer Name")
 
 st.subheader("Add Jewelry Item")
 
-item = st.selectbox("Item",["Gold","Silver"])
-weight = st.number_input("Weight (grams)",min_value=0.0)
+item = st.selectbox("Item", ["Gold", "Silver"])
+weight = st.number_input("Weight (grams)", min_value=0.0)
 base_rate = st.number_input("Today's Metal Rate per gram")
 
-# ---------- PURITY ---------- #
+# ---------- PURITY ----------
 
 if item == "Gold":
 
-    purity = st.selectbox("Gold Purity",["24K","22K","20K","18K","14K"])
+    purity = st.selectbox("Gold Purity", ["24K","22K","20K","18K","14K"])
 
     purity_values = {
         "24K":1.0,
@@ -40,7 +40,7 @@ if item == "Gold":
 
 else:
 
-    purity = st.selectbox("Silver Purity",["99%","92%","85%"])
+    purity = st.selectbox("Silver Purity", ["99%","92%","85%"])
 
     purity_values = {
         "99%":0.99,
@@ -54,7 +54,7 @@ making = st.number_input("Making Charge %")
 wastage = st.number_input("Wastage %")
 stone_price = st.number_input("Stone Price")
 
-# ---------- ADD ITEM ---------- #
+# ---------- ADD ITEM ----------
 
 if st.button("Add Item"):
 
@@ -65,14 +65,18 @@ if st.button("Add Item"):
     subtotal = metal_value + making_charge + wastage_charge + stone_price
 
     st.session_state["items"].append({
-        "Item":item,
-        "Purity":purity,
-        "Weight":weight,
-        "Rate":rate,
-        "Amount":subtotal
+        "Item": item,
+        "Purity": purity,
+        "Weight": weight,
+        "Rate": rate,
+        "Metal Value": round(metal_value,2),
+        "Making Charge": round(making_charge,2),
+        "Wastage Charge": round(wastage_charge,2),
+        "Stone Price": round(stone_price,2),
+        "Amount": round(subtotal,2)
     })
 
-# ---------- ITEMS TABLE ---------- #
+# ---------- ITEMS TABLE ----------
 
 st.subheader("Items in Bill")
 
@@ -81,7 +85,7 @@ if len(st.session_state["items"]) > 0:
     df_items = pd.DataFrame(st.session_state["items"])
     st.dataframe(df_items)
 
-# ---------- FINAL BILL ---------- #
+# ---------- FINAL BILL ----------
 
 if st.button("Generate Final Bill"):
 
@@ -103,19 +107,19 @@ if st.button("Generate Final Bill"):
         date = datetime.now().strftime("%Y-%m-%d")
 
         sale = {
-            "Customer":customer,
-            "Total":final_price,
-            "Date":date
+            "Customer": customer,
+            "Total": final_price,
+            "Date": date
         }
 
         df_sale = pd.DataFrame([sale])
 
         if os.path.exists("sales.csv"):
-            df_sale.to_csv("sales.csv",mode="a",header=False,index=False)
+            df_sale.to_csv("sales.csv", mode="a", header=False, index=False)
         else:
-            df_sale.to_csv("sales.csv",index=False)
+            df_sale.to_csv("sales.csv", index=False)
 
-        # ---------- PDF BILL ---------- #
+        # ---------- PDF BILL ----------
 
         pdf = FPDF()
         pdf.add_page()
@@ -131,26 +135,40 @@ if st.button("Generate Final Bill"):
 
         pdf.ln(5)
 
-        pdf.cell(40,8,"Item",1)
-        pdf.cell(40,8,"Purity",1)
-        pdf.cell(40,8,"Weight",1)
-        pdf.cell(40,8,"Amount",1,ln=True)
+        # TABLE HEADER
+
+        pdf.set_font("Arial","B",10)
+
+        pdf.cell(25,8,"Item",1)
+        pdf.cell(20,8,"Purity",1)
+        pdf.cell(20,8,"Weight",1)
+        pdf.cell(25,8,"Metal",1)
+        pdf.cell(25,8,"Making",1)
+        pdf.cell(25,8,"Wastage",1)
+        pdf.cell(25,8,"Stone",1)
+        pdf.cell(25,8,"Total",1,ln=True)
+
+        pdf.set_font("Arial","",10)
 
         for i in st.session_state["items"]:
 
-            pdf.cell(40,8,str(i["Item"]),1)
-            pdf.cell(40,8,str(i["Purity"]),1)
-            pdf.cell(40,8,str(i["Weight"]),1)
-            pdf.cell(40,8,str(round(i["Amount"],2)),1,ln=True)
+            pdf.cell(25,8,str(i["Item"]),1)
+            pdf.cell(20,8,str(i["Purity"]),1)
+            pdf.cell(20,8,str(i["Weight"]),1)
+            pdf.cell(25,8,str(i["Metal Value"]),1)
+            pdf.cell(25,8,str(i["Making Charge"]),1)
+            pdf.cell(25,8,str(i["Wastage Charge"]),1)
+            pdf.cell(25,8,str(i["Stone Price"]),1)
+            pdf.cell(25,8,str(i["Amount"]),1,ln=True)
 
-        pdf.cell(120,8,"Subtotal",1)
-        pdf.cell(40,8,str(round(subtotal,2)),1,ln=True)
+        pdf.cell(160,8,"Subtotal",1)
+        pdf.cell(30,8,str(round(subtotal,2)),1,ln=True)
 
-        pdf.cell(120,8,"GST 3%",1)
-        pdf.cell(40,8,str(round(gst,2)),1,ln=True)
+        pdf.cell(160,8,"GST 3%",1)
+        pdf.cell(30,8,str(round(gst,2)),1,ln=True)
 
-        pdf.cell(120,10,"Total Amount",1)
-        pdf.cell(40,10,str(round(final_price,2)),1,ln=True)
+        pdf.cell(160,10,"Total Amount",1)
+        pdf.cell(30,10,str(round(final_price,2)),1,ln=True)
 
         pdf.output("bill.pdf")
 
@@ -159,7 +177,7 @@ if st.button("Generate Final Bill"):
 
         st.session_state["items"] = []
 
-# ---------- SALES HISTORY ---------- #
+# ---------- SALES HISTORY ----------
 
 st.subheader("Sales History")
 
@@ -169,7 +187,7 @@ if os.path.exists("sales.csv"):
 
     st.dataframe(sales)
 
-    # ---------- DELETE SALE ---------- #
+    # DELETE SALE
 
     st.subheader("Delete Sale Entry")
 
@@ -186,13 +204,12 @@ if os.path.exists("sales.csv"):
             sales = sales.drop(index=selected_row)
             sales = sales.reset_index(drop=True)
 
-            sales.to_csv("sales.csv",index=False)
+            sales.to_csv("sales.csv", index=False)
 
             st.success("Sale deleted successfully")
-
             st.rerun()
 
-    # ---------- 30 DAY GRAPH ---------- #
+    # ---------- SALES GRAPH ----------
 
     st.subheader("Last 30 Days Sales Graph")
 
@@ -210,7 +227,7 @@ if os.path.exists("sales.csv"):
 
     st.plotly_chart(fig)
 
-    # ---------- DASHBOARD ---------- #
+    # ---------- DASHBOARD ----------
 
     st.subheader("Sales Dashboard")
 
@@ -223,6 +240,3 @@ if os.path.exists("sales.csv"):
 else:
 
     st.info("No sales recorded yet.")
-
-        
-    
