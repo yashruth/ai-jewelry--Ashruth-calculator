@@ -8,10 +8,10 @@ import plotly.express as px
 
 st.title("Jewelry Billing System")
 
-# ---------- SESSION STATE FOR MULTIPLE ITEMS ---------- #
+# ---------- SESSION STATE FIX ---------- #
 
 if "items" not in st.session_state:
-    st.session_state.items = []
+    st.session_state["items"] = []
 
 # ---------- CUSTOMER DETAILS ---------- #
 
@@ -64,7 +64,7 @@ if st.button("Add Item"):
 
     subtotal = metal_value + making_charge + wastage_charge + stone_price
 
-    st.session_state.items.append({
+    st.session_state["items"].append({
         "Item":item,
         "Purity":purity,
         "Weight":weight,
@@ -72,40 +72,35 @@ if st.button("Add Item"):
         "Amount":subtotal
     })
 
-# ---------- SHOW ITEMS ---------- #
+# ---------- ITEMS TABLE ---------- #
 
 st.subheader("Items in Bill")
 
-if len(st.session_state.items) > 0:
+if len(st.session_state["items"]) > 0:
 
-    df_items = pd.DataFrame(st.session_state.items)
-
+    df_items = pd.DataFrame(st.session_state["items"])
     st.dataframe(df_items)
 
 # ---------- FINAL BILL ---------- #
 
 if st.button("Generate Final Bill"):
 
-    if len(st.session_state.items) == 0:
+    if len(st.session_state["items"]) == 0:
 
         st.warning("Add items first")
 
     else:
 
-        df = pd.DataFrame(st.session_state.items)
+        df = pd.DataFrame(st.session_state["items"])
 
         subtotal = df["Amount"].sum()
-
         gst = subtotal * 0.03
-
         final_price = subtotal + gst
 
         st.success(f"Total Bill Amount: ₹{round(final_price,2)}")
 
         invoice = "INV"+str(random.randint(1000,9999))
         date = datetime.now().strftime("%Y-%m-%d")
-
-        # ---------- SAVE SALE ---------- #
 
         sale = {
             "Customer":customer,
@@ -141,7 +136,7 @@ if st.button("Generate Final Bill"):
         pdf.cell(40,8,"Weight",1)
         pdf.cell(40,8,"Amount",1,ln=True)
 
-        for i in st.session_state.items:
+        for i in st.session_state["items"]:
 
             pdf.cell(40,8,str(i["Item"]),1)
             pdf.cell(40,8,str(i["Purity"]),1)
@@ -162,7 +157,7 @@ if st.button("Generate Final Bill"):
         with open("bill.pdf","rb") as f:
             st.download_button("Download Bill",f,"bill.pdf")
 
-        st.session_state.items = []
+        st.session_state["items"] = []
 
 # ---------- SALES HISTORY ---------- #
 
@@ -189,7 +184,6 @@ if os.path.exists("sales.csv"):
         if st.button("Delete Selected Sale"):
 
             sales = sales.drop(index=selected_row)
-
             sales = sales.reset_index(drop=True)
 
             sales.to_csv("sales.csv",index=False)
@@ -229,3 +223,6 @@ if os.path.exists("sales.csv"):
 else:
 
     st.info("No sales recorded yet.")
+
+        
+    
