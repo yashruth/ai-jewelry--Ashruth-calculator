@@ -138,28 +138,31 @@ st.subheader("Sales History")
 
 if os.path.exists("sales.csv"):
 
-    sales = pd.read_csv("sales.csv")
+    sales = pd.read_csv("sales.csv").reset_index(drop=True)
 
     st.dataframe(sales)
 
-    # -------- DELETE OPTION -------- #
+    # -------- DELETE SALE UI -------- #
 
     st.subheader("Delete Sale Entry")
 
-    delete_index = st.number_input(
-        "Enter row number to delete",
-        min_value=0,
-        max_value=len(sales)-1 if len(sales)>0 else 0,
-        step=1
+    options = sales.index.tolist()
+
+    selected_row = st.selectbox(
+        "Select sale to delete",
+        options,
+        format_func=lambda x: f"{sales.loc[x,'Customer']} | {sales.loc[x,'Item']} | ₹{round(sales.loc[x,'Total'],2)} | {sales.loc[x,'Date']}"
     )
 
-    if st.button("Delete Sale"):
+    if st.button("Delete Selected Sale"):
 
-        sales = sales.drop(delete_index)
+        sales = sales.drop(selected_row)
 
         sales.to_csv("sales.csv",index=False)
 
         st.success("Sale deleted successfully")
+
+        st.rerun()
 
     # ---------------- 30 DAY GRAPH ---------------- #
 
