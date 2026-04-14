@@ -8,19 +8,23 @@ import plotly.express as px
 
 st.title("Jewelry Billing System")
 
-# ---------------- SHOP DETAILS ---------------- #
+# ---------- SESSION STATE FOR MULTIPLE ITEMS ---------- #
+
+if "items" not in st.session_state:
+    st.session_state.items = []
+
+# ---------- CUSTOMER DETAILS ---------- #
 
 shop_name = st.text_input("Shop Name","Ashruth Jewelry Shop")
 customer = st.text_input("Customer Name")
 
-st.subheader("Jewelry Details")
+st.subheader("Add Jewelry Item")
 
 item = st.selectbox("Item",["Gold","Silver"])
 weight = st.number_input("Weight (grams)",min_value=0.0)
-
 base_rate = st.number_input("Today's Metal Rate per gram")
 
-# ---------------- PURITY ---------------- #
+# ---------- PURITY ---------- #
 
 if item == "Gold":
 
@@ -34,10 +38,6 @@ if item == "Gold":
         "14K":0.585
     }
 
-    rate = base_rate * purity_values[purity]
-
-    st.write(f"{purity} Gold Rate: ₹{round(rate,2)} / gram")
-
 else:
 
     purity = st.selectbox("Silver Purity",["99%","92%","85%"])
@@ -48,92 +48,123 @@ else:
         "85%":0.85
     }
 
-    rate = base_rate * purity_values[purity]
-
-    st.write(f"{purity} Silver Rate: ₹{round(rate,2)} / gram")
-
+rate = base_rate * purity_values[purity]
 
 making = st.number_input("Making Charge %")
 wastage = st.number_input("Wastage %")
 stone_price = st.number_input("Stone Price")
 
-# ---------------- BILL GENERATION ---------------- #
+# ---------- ADD ITEM ---------- #
 
-if st.button("Generate Bill"):
+if st.button("Add Item"):
 
     metal_value = weight * rate
     making_charge = metal_value * making / 100
     wastage_charge = metal_value * wastage / 100
 
     subtotal = metal_value + making_charge + wastage_charge + stone_price
-    gst = subtotal * 0.03
-    final_price = subtotal + gst
 
-    st.success(f"Total Amount: ₹{round(final_price,2)}")
-
-    invoice = "INV"+str(random.randint(1000,9999))
-    date = datetime.now().strftime("%Y-%m-%d")
-
-    sale = {
-        "Customer":customer,
+    st.session_state.items.append({
         "Item":item,
         "Purity":purity,
         "Weight":weight,
         "Rate":rate,
-        "Total":final_price,
-        "Date":date
-    }
+        "Amount":subtotal
+    })
 
-    df_sale = pd.DataFrame([sale])
+# ---------- SHOW ITEMS ---------- #
 
-    if os.path.exists("sales.csv"):
-        df_sale.to_csv("sales.csv",mode="a",header=False,index=False)
+st.subheader("Items in Bill")
+
+if len(st.session_state.items) > 0:
+
+    df_items = pd.DataFrame(st.session_state.items)
+
+    st.dataframe(df_items)
+
+# ---------- FINAL BILL ---------- #
+
+if st.button("Generate Final Bill"):
+
+    if len(st.session_state.items) == 0:
+
+        st.warning("Add items first")
+
     else:
-        df_sale.to_csv("sales.csv",index=False)
 
-    # ---------------- PDF BILL ---------------- #
+        df = pd.DataFrame(st.session_state.items)
 
-    pdf = FPDF()
-    pdf.add_page()
+        subtotal = df["Amount"].sum()
 
-    pdf.set_font("Arial","B",16)
-    pdf.cell(190,10,shop_name,ln=True,align="C")
+        gst = subtotal * 0.03
 
-    pdf.set_font("Arial","",12)
-    pdf.cell(95,8,"Invoice: "+invoice)
-    pdf.cell(95,8,"Date: "+date,ln=True)
+        final_price = subtotal + gst
 
-    pdf.cell(95,8,"Customer: "+customer,ln=True)
+        st.success(f"Total Bill Amount: ₹{round(final_price,2)}")
 
-    pdf.ln(5)
+        invoice = "INV"+str(random.randint(1000,9999))
+        date = datetime.now().strftime("%Y-%m-%d")
 
-    pdf.cell(40,8,"Weight",1)
-    pdf.cell(40,8,"Rate",1)
-    pdf.cell(40,8,"Amount",1,ln=True)
+        # ---------- SAVE SALE ---------- #
 
-    pdf.cell(40,8,str(weight),1)
-    pdf.cell(40,8,str(round(rate,2)),1)
-    pdf.cell(40,8,str(round(metal_value,2)),1,ln=True)
+        sale = {
+            "Customer":customer,
+            "Total":final_price,
+            "Date":date
+        }
 
-    pdf.cell(150,8,"Making Charge",1)
-    pdf.cell(40,8,str(round(making_charge,2)),1,ln=True)
+        df_sale = pd.DataFrame([sale])
 
-    pdf.cell(150,8,"Wastage",1)
-    pdf.cell(40,8,str(round(wastage_charge,2)),1,ln=True)
+        if os.path.exists("sales.csv"):
+            df_sale.to_csv("sales.csv",mode="a",header=False,index=False)
+        else:
+            df_sale.to_csv("sales.csv",index=False)
 
-    pdf.cell(150,8,"GST 3%",1)
-    pdf.cell(40,8,str(round(gst,2)),1,ln=True)
+        # ---------- PDF BILL ---------- #
 
-    pdf.set_font("Arial","B",12)
-    pdf.cell(150,10,"Total Amount",1)
-    pdf.cell(40,10,str(round(final_price,2)),1,ln=True)
+        pdf = FPDF()
+        pdf.add_page()
 
-    pdf.output("bill.pdf")
+        pdf.set_font("Arial","B",16)
+        pdf.cell(190,10,shop_name,ln=True,align="C")
 
-    with open("bill.pdf","rb") as f:
-        st.download_button("Download Bill",f,"bill.pdf")
+        pdf.set_font("Arial","",12)
+        pdf.cell(95,8,"Invoice: "+invoice)
+        pdf.cell(95,8,"Date: "+date,ln=True)
 
-# ---------------- SALES HISTORY ---------------- #
+        pdf.cell(95,8,"Customer: "+customer,ln=True)
+
+        pdf.ln(5)
+
+        pdf.cell(40,8,"Item",1)
+        pdf.cell(40,8,"Purity",1)
+        pdf.cell(40,8,"Weight",1)
+        pdf.cell(40,8,"Amount",1,ln=True)
+
+        for i in st.session_state.items:
+
+            pdf.cell(40,8,str(i["Item"]),1)
+            pdf.cell(40,8,str(i["Purity"]),1)
+            pdf.cell(40,8,str(i["Weight"]),1)
+            pdf.cell(40,8,str(round(i["Amount"],2)),1,ln=True)
+
+        pdf.cell(120,8,"Subtotal",1)
+        pdf.cell(40,8,str(round(subtotal,2)),1,ln=True)
+
+        pdf.cell(120,8,"GST 3%",1)
+        pdf.cell(40,8,str(round(gst,2)),1,ln=True)
+
+        pdf.cell(120,10,"Total Amount",1)
+        pdf.cell(40,10,str(round(final_price,2)),1,ln=True)
+
+        pdf.output("bill.pdf")
+
+        with open("bill.pdf","rb") as f:
+            st.download_button("Download Bill",f,"bill.pdf")
+
+        st.session_state.items = []
+
+# ---------- SALES HISTORY ---------- #
 
 st.subheader("Sales History")
 
@@ -143,20 +174,16 @@ if os.path.exists("sales.csv"):
 
     st.dataframe(sales)
 
-    # ---------------- DELETE SALE ---------------- #
+    # ---------- DELETE SALE ---------- #
 
     st.subheader("Delete Sale Entry")
 
-    if len(sales) == 0:
-
-        st.info("No sales available to delete.")
-
-    else:
+    if len(sales) > 0:
 
         selected_row = st.selectbox(
             "Select sale to delete",
             sales.index,
-            format_func=lambda x: f"{sales.iloc[x]['Customer']} | {sales.iloc[x]['Item']} | ₹{round(sales.iloc[x]['Total'],2)} | {sales.iloc[x]['Date']}"
+            format_func=lambda x: f"{sales.iloc[x]['Customer']} | ₹{round(sales.iloc[x]['Total'],2)} | {sales.iloc[x]['Date']}"
         )
 
         if st.button("Delete Selected Sale"):
@@ -171,7 +198,7 @@ if os.path.exists("sales.csv"):
 
             st.rerun()
 
-    # ---------------- 30 DAY GRAPH ---------------- #
+    # ---------- 30 DAY GRAPH ---------- #
 
     st.subheader("Last 30 Days Sales Graph")
 
@@ -189,7 +216,7 @@ if os.path.exists("sales.csv"):
 
     st.plotly_chart(fig)
 
-    # ---------------- SALES DASHBOARD ---------------- #
+    # ---------- DASHBOARD ---------- #
 
     st.subheader("Sales Dashboard")
 
@@ -198,17 +225,6 @@ if os.path.exists("sales.csv"):
 
     st.metric("Total Revenue", f"₹{round(total_sales,2)}")
     st.metric("Total Orders", total_orders)
-
-    item_sales = sales.groupby("Item")["Total"].sum().reset_index()
-
-    fig2 = px.pie(
-        item_sales,
-        names="Item",
-        values="Total",
-        title="Gold vs Silver Sales"
-    )
-
-    st.plotly_chart(fig2)
 
 else:
 
