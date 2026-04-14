@@ -52,6 +52,7 @@ else:
 
     st.write(f"{purity} Silver Rate: ₹{round(rate,2)} / gram")
 
+
 making = st.number_input("Making Charge %")
 wastage = st.number_input("Wastage %")
 stone_price = st.number_input("Stone Price")
@@ -142,27 +143,33 @@ if os.path.exists("sales.csv"):
 
     st.dataframe(sales)
 
-    # -------- DELETE SALE UI -------- #
+    # ---------------- DELETE SALE ---------------- #
 
     st.subheader("Delete Sale Entry")
 
-    options = sales.index.tolist()
+    if len(sales) == 0:
 
-    selected_row = st.selectbox(
-        "Select sale to delete",
-        options,
-        format_func=lambda x: f"{sales.loc[x,'Customer']} | {sales.loc[x,'Item']} | ₹{round(sales.loc[x,'Total'],2)} | {sales.loc[x,'Date']}"
-    )
+        st.info("No sales available to delete.")
 
-    if st.button("Delete Selected Sale"):
+    else:
 
-        sales = sales.drop(selected_row)
+        selected_row = st.selectbox(
+            "Select sale to delete",
+            sales.index,
+            format_func=lambda x: f"{sales.iloc[x]['Customer']} | {sales.iloc[x]['Item']} | ₹{round(sales.iloc[x]['Total'],2)} | {sales.iloc[x]['Date']}"
+        )
 
-        sales.to_csv("sales.csv",index=False)
+        if st.button("Delete Selected Sale"):
 
-        st.success("Sale deleted successfully")
+            sales = sales.drop(index=selected_row)
 
-        st.rerun()
+            sales = sales.reset_index(drop=True)
+
+            sales.to_csv("sales.csv",index=False)
+
+            st.success("Sale deleted successfully")
+
+            st.rerun()
 
     # ---------------- 30 DAY GRAPH ---------------- #
 
@@ -202,3 +209,7 @@ if os.path.exists("sales.csv"):
     )
 
     st.plotly_chart(fig2)
+
+else:
+
+    st.info("No sales recorded yet.")
