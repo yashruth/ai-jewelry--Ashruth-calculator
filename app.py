@@ -1,242 +1,229 @@
 import streamlit as st
 import pandas as pd
 import os
-import random
 from datetime import datetime
-from fpdf import FPDF
 import plotly.express as px
+from fpdf import FPDF
 
-st.title("Jewelry Billing System")
+st.set_page_config(page_title="Silver Shop ERP")
 
-# ---------- SESSION STATE ----------
+st.title("Silver Shop ERP System")
 
-if "items" not in st.session_state:
-    st.session_state["items"] = []
+# ---------------- LOGIN ---------------- #
 
-# ---------- CUSTOMER DETAILS ----------
+users = {
+    "admin": "1234",
+    "staff1": "1111",
+    "staff2": "2222"
+}
 
-shop_name = st.text_input("Shop Name", "Ashruth Jewelry Shop")
-customer = st.text_input("Customer Name")
+st.sidebar.header("Login")
 
-st.subheader("Add Jewelry Item")
+username = st.sidebar.text_input("ashruth")
+password = st.sidebar.text_input("12345", type="password")
 
-item = st.selectbox("Item", ["Gold", "Silver"])
-weight = st.number_input("Weight (grams)", min_value=0.0)
-base_rate = st.number_input("Today's Metal Rate per gram")
+if username not in users or users[username] != password:
+    st.warning("Enter valid login in sidebar")
+    st.stop()
 
-# ---------- PURITY ----------
+st.sidebar.success(f"Welcome {username}")
 
-if item == "Gold":
+# ---------------- RATE SETTINGS ---------------- #
 
-    purity = st.selectbox("Gold Purity", ["24K","22K","20K","18K","14K"])
+st.header("Silver Rate Settings")
 
-    purity_values = {
-        "24K":1.0,
-        "22K":0.916,
-        "20K":0.833,
-        "18K":0.75,
-        "14K":0.585
-    }
+buy_rate = st.number_input("Buy Rate per KG (₹)", min_value=0.0)
+sell_rate = st.number_input("Sell Rate per KG (₹)", min_value=0.0)
 
-else:
+buy_gram = 0
+sell_gram = 0
+profit_per_gram = 0
 
-    purity = st.selectbox("Silver Purity", ["99%","92%","85%"])
+if buy_rate > 0 and sell_rate > 0:
 
-    purity_values = {
-        "99%":0.99,
-        "92%":0.92,
-        "85%":0.85
-    }
+    buy_gram = buy_rate / 1000
+    sell_gram = sell_rate / 1000
+    profit_per_gram = sell_gram - buy_gram
 
-rate = base_rate * purity_values[purity]
+    st.success(f"Sell per gram ₹{round(sell_gram,2)}")
+    st.info(f"Profit per gram ₹{round(profit_per_gram,2)}")
 
-making = st.number_input("Making Charge %")
-wastage = st.number_input("Wastage %")
-stone_price = st.number_input("Stone Price")
+# ---------------- INVENTORY ---------------- #
 
-# ---------- ADD ITEM ----------
+st.header("Inventory")
 
-if st.button("Add Item"):
+stock_file = "stock.csv"
 
-    metal_value = weight * rate
-    making_charge = metal_value * making / 100
-    wastage_charge = metal_value * wastage / 100
+add_stock = st.number_input("Add Stock (grams)", min_value=0.0)
 
-    subtotal = metal_value + making_charge + wastage_charge + stone_price
+if st.button("Add Stock"):
 
-    st.session_state["items"].append({
-        "Item": item,
-        "Purity": purity,
-        "Weight": weight,
-        "Rate": rate,
-        "Metal Value": round(metal_value,2),
-        "Making Charge": round(making_charge,2),
-        "Wastage Charge": round(wastage_charge,2),
-        "Stone Price": round(stone_price,2),
-        "Amount": round(subtotal,2)
-    })
+    df = pd.DataFrame([{"stock": add_stock}])
 
-# ---------- ITEMS TABLE ----------
-
-st.subheader("Items in Bill")
-
-if len(st.session_state["items"]) > 0:
-
-    df_items = pd.DataFrame(st.session_state["items"])
-    st.dataframe(df_items)
-
-# ---------- FINAL BILL ----------
-
-if st.button("Generate Final Bill"):
-
-    if len(st.session_state["items"]) == 0:
-
-        st.warning("Add items first")
-
+    if os.path.exists(stock_file):
+        df.to_csv(stock_file, mode="a", header=False, index=False)
     else:
+        df.to_csv(stock_file, index=False)
 
-        df = pd.DataFrame(st.session_state["items"])
+    st.success("Stock added")
 
-        subtotal = df["Amount"].sum()
-        gst = subtotal * 0.03
-        final_price = subtotal + gst
+total_stock = 0
 
-        st.success(f"Total Bill Amount: ₹{round(final_price,2)}")
+if os.path.exists(stock_file):
 
-        invoice = "INV"+str(random.randint(1000,9999))
-        date = datetime.now().strftime("%Y-%m-%d")
+    stock = pd.read_csv(stock_file)
+    total_stock = stock["stock"].sum()
 
-        sale = {
-            "Customer": customer,
-            "Total": final_price,
-            "Date": date
+    st.metric("Available Stock (g)", round(total_stock,2))
+
+# ---------------- CALCULATOR ---------------- #
+
+st.header("Silver Calculator")
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
+if sell_gram > 0:
+
+    if col1.button("1g"):
+        st.success(f"₹{round(1*sell_gram,2)}")
+
+    if col2.button("2g"):
+        st.success(f"₹{round(2*sell_gram,2)}")
+
+    if col3.button("5g"):
+        st.success(f"₹{round(5*sell_gram,2)}")
+
+    if col4.button("10g"):
+        st.success(f"₹{round(10*sell_gram,2)}")
+
+    if col5.button("100g"):
+        st.success(f"₹{round(100*sell_gram,2)}")
+
+weight = st.number_input("Custom Weight (grams)", min_value=0.0)
+
+price = 0
+profit = 0
+
+if weight > 0 and sell_gram > 0:
+
+    price = weight * sell_gram
+    profit = weight * profit_per_gram
+
+    st.success(f"Customer Price ₹{round(price,2)}")
+    st.info(f"Profit ₹{round(profit,2)}")
+
+# ---------------- SALE ---------------- #
+
+st.header("Record Sale")
+
+customer = st.text_input("Customer Name")
+phone = st.text_input("Customer WhatsApp Number")
+
+if st.button("Save Sale"):
+
+    if weight > 0 and weight <= total_stock:
+
+        sale_data = {
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "customer": customer,
+            "weight": weight,
+            "sale": price,
+            "profit": profit
         }
 
-        df_sale = pd.DataFrame([sale])
+        df = pd.DataFrame([sale_data])
 
         if os.path.exists("sales.csv"):
-            df_sale.to_csv("sales.csv", mode="a", header=False, index=False)
+            df.to_csv("sales.csv", mode="a", header=False, index=False)
         else:
-            df_sale.to_csv("sales.csv", index=False)
+            df.to_csv("sales.csv", index=False)
 
-        # ---------- PDF BILL ----------
+        st.success("Sale saved")
+
+        # reduce stock
+        new_stock = total_stock - weight
+        pd.DataFrame([{"stock": new_stock}]).to_csv(stock_file, index=False)
+
+        # -------- PDF BILL -------- #
 
         pdf = FPDF()
         pdf.add_page()
 
         pdf.set_font("Arial","B",16)
-        pdf.cell(190,10,shop_name,ln=True,align="C")
+        pdf.cell(200,10,"Silver Shop Bill",ln=True)
 
         pdf.set_font("Arial","",12)
-        pdf.cell(95,8,"Invoice: "+invoice)
-        pdf.cell(95,8,"Date: "+date,ln=True)
 
-        pdf.cell(95,8,"Customer: "+customer,ln=True)
-
-        pdf.ln(5)
-
-        # TABLE HEADER
-
-        pdf.set_font("Arial","B",10)
-
-        pdf.cell(25,8,"Item",1)
-        pdf.cell(20,8,"Purity",1)
-        pdf.cell(20,8,"Weight",1)
-        pdf.cell(25,8,"Metal",1)
-        pdf.cell(25,8,"Making",1)
-        pdf.cell(25,8,"Wastage",1)
-        pdf.cell(25,8,"Stone",1)
-        pdf.cell(25,8,"Total",1,ln=True)
-
-        pdf.set_font("Arial","",10)
-
-        for i in st.session_state["items"]:
-
-            pdf.cell(25,8,str(i["Item"]),1)
-            pdf.cell(20,8,str(i["Purity"]),1)
-            pdf.cell(20,8,str(i["Weight"]),1)
-            pdf.cell(25,8,str(i["Metal Value"]),1)
-            pdf.cell(25,8,str(i["Making Charge"]),1)
-            pdf.cell(25,8,str(i["Wastage Charge"]),1)
-            pdf.cell(25,8,str(i["Stone Price"]),1)
-            pdf.cell(25,8,str(i["Amount"]),1,ln=True)
-
-        pdf.cell(160,8,"Subtotal",1)
-        pdf.cell(30,8,str(round(subtotal,2)),1,ln=True)
-
-        pdf.cell(160,8,"GST 3%",1)
-        pdf.cell(30,8,str(round(gst,2)),1,ln=True)
-
-        pdf.cell(160,10,"Total Amount",1)
-        pdf.cell(30,10,str(round(final_price,2)),1,ln=True)
+        pdf.cell(200,10,f"Customer: {customer}",ln=True)
+        pdf.cell(200,10,f"Weight: {weight} g",ln=True)
+        pdf.cell(200,10,f"Amount: ₹{round(price,2)}",ln=True)
 
         pdf.output("bill.pdf")
 
         with open("bill.pdf","rb") as f:
             st.download_button("Download Bill",f,"bill.pdf")
 
-        st.session_state["items"] = []
+        if phone:
+            link = f"https://wa.me/{phone}?text=Your silver bill amount ₹{price}"
+            st.link_button("Send WhatsApp Bill", link)
 
-# ---------- SALES HISTORY ----------
-
-st.subheader("Sales History")
+# ---------------- DASHBOARD ---------------- #
 
 if os.path.exists("sales.csv"):
 
-    sales = pd.read_csv("sales.csv").reset_index(drop=True)
+    st.header("Sales Dashboard")
 
+    sales = pd.read_csv("sales.csv")
+
+    total_sales = sales["sale"].sum()
+    total_profit = sales["profit"].sum()
+    avg_sale = sales["sale"].mean()
+
+    col1,col2,col3 = st.columns(3)
+
+    col1.metric("Total Sales",f"₹{round(total_sales,2)}")
+    col2.metric("Total Profit",f"₹{round(total_profit,2)}")
+    col3.metric("Average Sale",f"₹{round(avg_sale,2)}")
+
+    st.subheader("Sales History")
     st.dataframe(sales)
 
-    # DELETE SALE
+    # delete sale
+    st.subheader("Delete Sale")
 
-    st.subheader("Delete Sale Entry")
+    idx = st.number_input("Row number", min_value=0, step=1)
 
-    if len(sales) > 0:
+    if st.button("Delete"):
 
-        selected_row = st.selectbox(
-            "Select sale to delete",
-            sales.index,
-            format_func=lambda x: f"{sales.iloc[x]['Customer']} | ₹{round(sales.iloc[x]['Total'],2)} | {sales.iloc[x]['Date']}"
-        )
-
-        if st.button("Delete Selected Sale"):
-
-            sales = sales.drop(index=selected_row)
-            sales = sales.reset_index(drop=True)
-
+        if idx < len(sales):
+            sales = sales.drop(idx)
             sales.to_csv("sales.csv", index=False)
+            st.success("Sale deleted")
 
-            st.success("Sale deleted successfully")
-            st.rerun()
+# ---------------- DAILY GRAPH ---------------- #
 
-    # ---------- SALES GRAPH ----------
+    sales["date"] = pd.to_datetime(sales["date"])
 
-    st.subheader("Last 30 Days Sales Graph")
+    daily = sales.groupby("date")["profit"].sum().reset_index()
 
-    sales["Date"] = pd.to_datetime(sales["Date"], errors="coerce")
-
-    last_30 = sales.sort_values("Date").tail(30)
-
-    fig = px.line(
-        last_30,
-        x="Date",
-        y="Total",
-        markers=True,
-        title="Daily Sales (Last 30 Days)"
-    )
+    fig = px.line(daily, x="date", y="profit", markers=True, title="Daily Profit")
 
     st.plotly_chart(fig)
 
-    # ---------- DASHBOARD ----------
+# ---------------- MONTHLY REPORT ---------------- #
 
-    st.subheader("Sales Dashboard")
+    st.header("Monthly Report")
 
-    total_sales = sales["Total"].sum()
-    total_orders = len(sales)
+    sales["month"] = sales["date"].dt.to_period("M")
 
-    st.metric("Total Revenue", f"₹{round(total_sales,2)}")
-    st.metric("Total Orders", total_orders)
+    monthly = sales.groupby("month")[["sale","profit"]].sum()
 
-else:
+    st.dataframe(monthly)
 
-    st.info("No sales recorded yet.")
+# ---------------- CUSTOMER LEDGER ---------------- #
+
+    st.header("Customer Ledger")
+
+    ledger = sales.groupby("customer")[["sale","profit"]].sum()
+
+    st.dataframe(ledger)
