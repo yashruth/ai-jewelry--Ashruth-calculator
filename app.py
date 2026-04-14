@@ -6,7 +6,7 @@ import random
 from datetime import datetime
 from fpdf import FPDF
 
-st.title("AI Jewelry Billing System")
+st.title("Jewelry Billing System")
 
 # ---------------- LIVE METAL RATES ---------------- #
 
@@ -30,38 +30,61 @@ def get_live_rates():
 
     except:
 
-        st.warning("Live API failed. Using default values.")
-
-        return 7200, 90
+        return None, None
 
 
 gold_rate, silver_rate = get_live_rates()
 
 st.subheader("Live Metal Market Rates")
 
-st.success(f"Gold Price: ₹{gold_rate} / gram")
-st.success(f"Silver Price: ₹{silver_rate} / gram")
+if gold_rate and silver_rate:
+
+    st.success(f"24K Gold Price: ₹{gold_rate} / gram")
+    st.success(f"Silver Price: ₹{silver_rate} / gram")
+
+else:
+
+    st.error("Unable to fetch live metal rates")
 
 
 # ---------------- SHOP DETAILS ---------------- #
 
-shop_name = st.text_input("Shop Name", "Ashruth Jewelry Shop")
+shop_name = st.text_input("Shop Name","Ashruth Jewelry Shop")
 
 customer = st.text_input("Customer Name")
 
 st.subheader("Jewelry Details")
 
-item = st.selectbox("Item", ["Gold","Silver"])
+item = st.selectbox("Item",["Gold","Silver"])
 
-weight = st.number_input("Weight (grams)", min_value=0.0)
+weight = st.number_input("Weight (grams)",min_value=0.0)
 
-if item == "Gold":
 
-    rate = st.number_input("Rate per gram", value=float(gold_rate))
+# ---------------- PURITY ---------------- #
+
+if item == "Gold" and gold_rate:
+
+    purity = st.selectbox("Gold Purity",["24K","22K","18K","14K"])
+
+    purity_values = {
+        "24K":1.0,
+        "22K":0.916,
+        "18K":0.75,
+        "14K":0.585
+    }
+
+    rate = gold_rate * purity_values[purity]
+
+    st.write(f"{purity} Gold Rate: ₹{round(rate,2)} / gram")
+
+elif item == "Silver" and silver_rate:
+
+    rate = silver_rate
 
 else:
 
-    rate = st.number_input("Rate per gram", value=float(silver_rate))
+    rate = 0
+
 
 making = st.number_input("Making Charge %")
 
@@ -72,7 +95,7 @@ stone_price = st.number_input("Stone Price")
 
 # ---------------- BILL GENERATION ---------------- #
 
-if st.button("Generate Bill"):
+if st.button("Generate Bill") and rate > 0:
 
     metal_value = weight * rate
 
@@ -92,8 +115,6 @@ if st.button("Generate Bill"):
 
     date = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-
-    # SAVE SALES
 
     sale = {
         "Customer":customer,
@@ -115,7 +136,7 @@ if st.button("Generate Bill"):
         df_sale.to_csv("sales.csv",index=False)
 
 
-    # ---------------- PDF BILL ---------------- #
+    # PDF BILL
 
     pdf = FPDF()
 
@@ -139,7 +160,7 @@ if st.button("Generate Bill"):
     pdf.cell(40,8,"Amount",1,ln=True)
 
     pdf.cell(40,8,str(weight),1)
-    pdf.cell(40,8,str(rate),1)
+    pdf.cell(40,8,str(round(rate,2)),1)
     pdf.cell(40,8,str(round(metal_value,2)),1,ln=True)
 
     pdf.cell(150,8,"Making Charge",1)
