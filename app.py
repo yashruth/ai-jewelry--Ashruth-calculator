@@ -142,11 +142,31 @@ if os.path.exists("sales.csv"):
 
     st.dataframe(sales)
 
+    # -------- DELETE OPTION -------- #
+
+    st.subheader("Delete Sale Entry")
+
+    delete_index = st.number_input(
+        "Enter row number to delete",
+        min_value=0,
+        max_value=len(sales)-1 if len(sales)>0 else 0,
+        step=1
+    )
+
+    if st.button("Delete Sale"):
+
+        sales = sales.drop(delete_index)
+
+        sales.to_csv("sales.csv",index=False)
+
+        st.success("Sale deleted successfully")
+
     # ---------------- 30 DAY GRAPH ---------------- #
 
     st.subheader("Last 30 Days Sales Graph")
 
     sales["Date"] = pd.to_datetime(sales["Date"], errors="coerce")
+
     last_30 = sales.sort_values("Date").tail(30)
 
     fig = px.line(
