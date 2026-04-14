@@ -1,51 +1,11 @@
 import streamlit as st
 import pandas as pd
-import requests
 import os
 import random
 from datetime import datetime
 from fpdf import FPDF
 
 st.title("Jewelry Billing System")
-
-# ---------------- LIVE METAL RATES ---------------- #
-
-def get_live_rates():
-
-    try:
-
-        url = "https://api.metals.live/v1/spot"
-
-        r = requests.get(url, timeout=10)
-
-        data = r.json()
-
-        gold_oz = data[0]["gold"]
-        silver_oz = data[1]["silver"]
-
-        gold = gold_oz / 31.1035
-        silver = silver_oz / 31.1035
-
-        return round(gold,2), round(silver,2)
-
-    except:
-
-        return None, None
-
-
-gold_rate, silver_rate = get_live_rates()
-
-st.subheader("Live Metal Market Rates")
-
-if gold_rate and silver_rate:
-
-    st.success(f"24K Gold Price: ₹{gold_rate} / gram")
-    st.success(f"Silver Price: ₹{silver_rate} / gram")
-
-else:
-
-    st.error("Unable to fetch live metal rates")
-
 
 # ---------------- SHOP DETAILS ---------------- #
 
@@ -60,9 +20,14 @@ item = st.selectbox("Item",["Gold","Silver"])
 weight = st.number_input("Weight (grams)",min_value=0.0)
 
 
+# ---------------- MANUAL RATE ---------------- #
+
+base_rate = st.number_input("Today's Metal Rate per gram")
+
+
 # ---------------- PURITY ---------------- #
 
-if item == "Gold" and gold_rate:
+if item == "Gold":
 
     purity = st.selectbox("Gold Purity",["24K","22K","18K","14K"])
 
@@ -73,17 +38,13 @@ if item == "Gold" and gold_rate:
         "14K":0.585
     }
 
-    rate = gold_rate * purity_values[purity]
+    rate = base_rate * purity_values[purity]
 
     st.write(f"{purity} Gold Rate: ₹{round(rate,2)} / gram")
 
-elif item == "Silver" and silver_rate:
-
-    rate = silver_rate
-
 else:
 
-    rate = 0
+    rate = base_rate
 
 
 making = st.number_input("Making Charge %")
@@ -95,7 +56,7 @@ stone_price = st.number_input("Stone Price")
 
 # ---------------- BILL GENERATION ---------------- #
 
-if st.button("Generate Bill") and rate > 0:
+if st.button("Generate Bill"):
 
     metal_value = weight * rate
 
@@ -136,7 +97,7 @@ if st.button("Generate Bill") and rate > 0:
         df_sale.to_csv("sales.csv",index=False)
 
 
-    # PDF BILL
+    # ---------------- PDF BILL ---------------- #
 
     pdf = FPDF()
 
